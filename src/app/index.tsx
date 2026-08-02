@@ -262,11 +262,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 100,
+    padding: 24,
   },
   loadingLogo: {
-    width: 150,
-    height: 150,
+    width: 260,
+    height: 100,
     marginBottom: 20,
+    alignSelf: 'center',
   },
   spinner: {
     marginVertical: 15,
