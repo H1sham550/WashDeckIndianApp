@@ -53,14 +53,25 @@ export default function App() {
     return () => clearTimeout(safetyTimer);
   }, [targetUrl, isConnected, errorOccurred]);
 
-  // Handle hardware back button on Android
+  // Handle hardware back button on Android safely
   useEffect(() => {
     const onBackPress = () => {
       if (webViewRef.current && canGoBackRef.current) {
         webViewRef.current.goBack();
-        return true; // intercept back button press
+        return true; // intercept back button press to navigate webview back
       }
-      return false; // let default back action occur (close app)
+
+      // If at root page and cannot go back further, prompt confirmation before exit
+      Alert.alert(
+        'Exit WashDeck App',
+        'Are you sure you want to exit the app?',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => {} },
+          { text: 'Exit', style: 'destructive', onPress: () => BackHandler.exitApp() },
+        ],
+        { cancelable: true }
+      );
+      return true; // intercept back button
     };
 
     const backHandlerSubscription = BackHandler.addEventListener(
