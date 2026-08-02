@@ -106,25 +106,35 @@ export default function App() {
     return () => clearTimeout(safetyTimer);
   }, [targetUrl, isConnected, errorOccurred]);
 
-  // Handle hardware back button on Android safely
+  // Handle hardware back button on Android safely with subtab priority to /dashboard
   useEffect(() => {
     const onBackPress = () => {
-      if (webViewRef.current && canGoBackRef.current) {
-        webViewRef.current.goBack();
-        return true; // intercept back button press to navigate webview back
+      if (webViewRef.current) {
+        webViewRef.current.injectJavaScript(`
+          (function() {
+            var activeCloseBtn = document.querySelector('[data-modal-close-btn]');
+            if (activeCloseBtn) {
+              activeCloseBtn.click();
+              return;
+            }
+            var path = window.location.pathname;
+            if (path.startsWith('/dashboard/') && path !== '/dashboard/' && path !== '/dashboard') {
+              try { sessionStorage.setItem('just_returned_root', 'true'); } catch(e) {}
+              window.location.href = '/dashboard';
+              return;
+            }
+            if (path.startsWith('/admin/') && path !== '/admin/' && path !== '/admin') {
+              try { sessionStorage.setItem('just_returned_root', 'true'); } catch(e) {}
+              window.location.href = '/admin';
+              return;
+            }
+            window.dispatchEvent(new Event('popstate'));
+          })();
+          true;
+        `);
+        return true;
       }
-
-      // If at root page and cannot go back further, prompt confirmation before exit
-      Alert.alert(
-        'Exit WashDeck App',
-        'Are you sure you want to exit the app?',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => {} },
-          { text: 'Exit', style: 'destructive', onPress: () => BackHandler.exitApp() },
-        ],
-        { cancelable: true }
-      );
-      return true; // intercept back button
+      return true;
     };
 
     const backHandlerSubscription = BackHandler.addEventListener(
