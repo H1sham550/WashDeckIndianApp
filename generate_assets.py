@@ -106,8 +106,8 @@ def generate_assets():
     full_logo_crop = img.crop(full_logo_box)
     fl_w, fl_h = full_logo_crop.size
 
-    # Android 12+ Splash Screen safe zone compliance: logo width spans 48% of canvas width (980px) to prevent side clipping
-    target_logo_w = 980
+    # Android 12+ Splash Screen safe zone compliance: logo width spans 64% of canvas width (1310px) to prevent side clipping while maintaining full, prominent size
+    target_logo_w = 1310
     target_logo_h = int((target_logo_w / fl_w) * fl_h)
     
     resized_logo = full_logo_crop.resize((target_logo_w, target_logo_h), Image.Resampling.LANCZOS)
