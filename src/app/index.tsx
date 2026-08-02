@@ -1,98 +1,329 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  BackHandler,
+  Image,
+  Platform,
+  StatusBar,
+  Linking,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView, WebViewNavigation } from 'react-native-webview';
+import NetInfo from '@react-native-community/netinfo';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+const PROD_URL = 'https://washdeck.vercel.app';
+const DEV_LOCAL_URL = 'http://localhost:3000';
+const DEV_LAN_URL = 'http://192.168.1.3:3000';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
+// Default to lightning-fast Vercel CDN production URL for instant startup
+const INITIAL_URL = process.env.EXPO_PUBLIC_WEBSITE_URL || PROD_URL;
+
+const PRIMARY_COLOR = '#0b2240'; // WashDeck Navy
+const ACCENT_COLOR = '#1771f2';  // WashDeck Electric Blue
+const BG_COLOR = '#F8F9FA';      // WashDeck Page Background
+
+export default function App() {
+  const webViewRef = useRef<WebView>(null);
+  
+  // WebView state
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [targetUrl, setTargetUrl] = useState(INITIAL_URL);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState<boolean | null>(true);
+  const [errorOccurred, setErrorOccurred] = useState(false);
+  const [triedFallback, setTriedFallback] = useState(false);
+
+  // Ref to hold latest canGoBack state for the Android back press listener
+  const canGoBackRef = useRef(false);
+  useEffect(() => {
+    canGoBackRef.current = canGoBack;
+  }, [canGoBack]);
+
+  // Safety timer: hide loading screen after timeout if connected
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      if (isConnected && !errorOccurred) {
+        setIsLoading(false);
+      }
+    }, 3000);
+    return () => clearTimeout(safetyTimer);
+  }, [targetUrl, isConnected, errorOccurred]);
+
+  // Handle hardware back button on Android
+  useEffect(() => {
+    const onBackPress = () => {
+      if (webViewRef.current && canGoBackRef.current) {
+        webViewRef.current.goBack();
+        return true; // intercept back button press
+      }
+      return false; // let default back action occur (close app)
+    };
+
+    const backHandlerSubscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      onBackPress
     );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+
+    return () => backHandlerSubscription.remove();
+  }, []);
+
+  // Monitor network status silently
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const connected = Boolean(state.isConnected && (state.isInternetReachable ?? true));
+      setIsConnected(connected);
+      if (!connected) {
+        setIsLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Retry loading the website — explicitly re-verify network state before hiding offline UI
+  const handleRetry = async () => {
+    const state = await NetInfo.fetch();
+    const connected = Boolean(state.isConnected && (state.isInternetReachable ?? true));
+    setIsConnected(connected);
+
+    if (!connected) {
+      // Still offline — maintain the Connection Lost UI card
+      setErrorOccurred(false);
+      setIsLoading(false);
+      return;
+    }
+
+    // Connected — reset errors and reload webview
+    setErrorOccurred(false);
+    setIsLoading(true);
+    setTriedFallback(false);
+    setTargetUrl(INITIAL_URL);
+    webViewRef.current?.reload();
+  };
+
+  const handleNavigationStateChange = (navState: WebViewNavigation) => {
+    setCanGoBack(navState.canGoBack);
+  };
+
+  // Intercept external links like WhatsApp shares, phone calls, and mailto links
+  const handleShouldStartLoad = (event: any) => {
+    const url = event.url;
+    if (
+      url.startsWith('whatsapp://') ||
+      url.startsWith('https://wa.me') ||
+      url.startsWith('https://api.whatsapp.com') ||
+      url.startsWith('tel:') ||
+      url.startsWith('mailto:') ||
+      url.startsWith('geo:')
+    ) {
+      Linking.openURL(url).catch(() => {});
+      return false;
+    }
+    return true;
+  };
+
+  // Handle load errors cleanly: try production fallback first before showing error UI
+  const handleLoadError = () => {
+    if (!triedFallback && targetUrl !== PROD_URL) {
+      console.log('Local dev URL unreachable, attempting production fallback:', PROD_URL);
+      setTriedFallback(true);
+      setTargetUrl(PROD_URL);
+    } else {
+      setErrorOccurred(true);
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
+      
+      <View style={styles.container}>
+        {/* Main WebView — kept persistent in tree to avoid flickering re-mounts */}
+        <WebView
+          ref={webViewRef}
+          source={{ uri: targetUrl }}
+          style={[styles.webview, (errorOccurred || !isConnected) && { opacity: 0 }]}
+          onNavigationStateChange={handleNavigationStateChange}
+          onShouldStartLoadWithRequest={handleShouldStartLoad}
+          onLoadStart={() => {
+            if (isConnected && !errorOccurred) {
+              setIsLoading(true);
+            }
+          }}
+          onLoadProgress={({ nativeEvent }) => {
+            // Dismiss splash overlay early at 50% DOM load for instantaneous feel
+            if (nativeEvent.progress >= 0.5) {
+              setIsLoading(false);
+              setErrorOccurred(false);
+            }
+          }}
+          onLoadEnd={() => {
+            if (isConnected) {
+              setIsLoading(false);
+            }
+          }}
+          onError={handleLoadError}
+          onHttpError={(e) => {
+            if (e.nativeEvent.statusCode >= 400) {
+              handleLoadError();
+            }
+          }}
+          renderError={() => <View style={{ flex: 1, backgroundColor: '#FFFFFF' }} />}
+          androidLayerType="hardware"
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          cacheEnabled={true}
+          thirdPartyCookiesEnabled={true}
+          sharedCookiesEnabled={true}
+          allowFileAccess={true}
+          allowFileAccessFromFileURLs={true}
+          allowsInlineMediaPlayback={true}
+          mediaPlaybackRequiresUserAction={false}
+          pullToRefreshEnabled={true}
+          allowsBackForwardNavigationGestures={true}
+          textZoom={100}
+          injectedJavaScript="window.isNativeApp = true; true;"
+        />
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+        {/* Custom Loading Overlay — renders cleanly on top until page finishes loading */}
+        {isLoading && !errorOccurred && isConnected && (
+          <View style={styles.loadingContainer} pointerEvents="none">
+            <Image
+              source={require('../../assets/app_logo.png')}
+              style={styles.loadingLogo}
+              resizeMode="contain"
+            />
+            <ActivityIndicator size="large" color={ACCENT_COLOR} style={styles.spinner} />
+            <Text style={styles.loadingText}>Connecting to WashDeck...</Text>
+          </View>
+        )}
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        {/* Custom Offline / Error Screen — static, stable, non-flashing card */}
+        {(!isConnected || errorOccurred) && (
+          <View style={styles.errorContainer}>
+            <Image
+              source={require('../../assets/app_logo.png')}
+              style={styles.errorLogo}
+              resizeMode="contain"
+            />
+            <View style={styles.errorCard}>
+              <Text style={styles.errorTitle}>Connection Lost</Text>
+              <Text style={styles.errorSubtitle}>
+                {!isConnected
+                  ? 'Please check your internet connection and try again.'
+                  : 'Unable to connect to the WashDeck server.'}
+              </Text>
+              <TouchableOpacity style={styles.retryButton} onPress={handleRetry} activeOpacity={0.8}>
+                <Text style={styles.retryButtonText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
   safeArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    backgroundColor: '#FFFFFF',
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  container: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    backgroundColor: BG_COLOR,
   },
-  title: {
+  webview: {
+    flex: 1,
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  loadingLogo: {
+    width: 150,
+    height: 150,
+    marginBottom: 20,
+  },
+  spinner: {
+    marginVertical: 15,
+  },
+  loadingText: {
+    fontSize: 20,
+    color: '#0b2240', // WashDeck Navy
+    fontWeight: '700',
     textAlign: 'center',
+    marginTop: 10,
   },
-  code: {
-    textTransform: 'uppercase',
+  errorContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  errorLogo: {
+    width: 220,
+    height: 90,
+    marginBottom: 40,
+  },
+  errorCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: BG_COLOR,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: PRIMARY_COLOR,
+    marginBottom: 8,
+  },
+  errorSubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: PRIMARY_COLOR,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
+
