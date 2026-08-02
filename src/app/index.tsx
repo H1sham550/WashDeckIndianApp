@@ -4,12 +4,14 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
   BackHandler,
   Image,
   Platform,
   StatusBar,
   Linking,
+  Alert,
+  Animated,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
@@ -25,6 +27,67 @@ const INITIAL_URL = process.env.EXPO_PUBLIC_WEBSITE_URL || PROD_URL;
 const PRIMARY_COLOR = '#0b2240'; // WashDeck Navy
 const ACCENT_COLOR = '#1771f2';  // WashDeck Electric Blue
 const BG_COLOR = '#F8F9FA';      // WashDeck Page Background
+
+// Custom Loading Animation Component
+const CustomPulseLoader = () => {
+  const pulseAnim = useRef(new Animated.Value(0.4)).current;
+  const barAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.4,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    Animated.loop(
+      Animated.timing(barAnim, {
+        toValue: 1,
+        duration: 1100,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: false,
+      })
+    ).start();
+  }, []);
+
+  const barWidth = barAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['15%', '65%', '100%'],
+  });
+
+  return (
+    <View style={styles.customLoaderContainer}>
+      <Animated.View
+        style={[
+          styles.pulseDot,
+          {
+            opacity: pulseAnim,
+            transform: [
+              {
+                scale: pulseAnim.interpolate({
+                  inputRange: [0.4, 1],
+                  outputRange: [0.85, 1.2],
+                }),
+              },
+            ],
+          },
+        ]}
+      />
+      <View style={styles.loadingTrack}>
+        <Animated.View style={[styles.loadingFill, { width: barWidth }]} />
+      </View>
+    </View>
+  );
+};
 
 export default function App() {
   const webViewRef = useRef<WebView>(null);
@@ -201,7 +264,7 @@ export default function App() {
           injectedJavaScript="window.isNativeApp = true; true;"
         />
 
-        {/* Custom Loading Overlay — renders cleanly on top until page finishes loading */}
+        {/* Custom Loading Overlay — renders logo + modern custom pulse loading animation without text */}
         {isLoading && !errorOccurred && isConnected && (
           <View style={styles.loadingContainer} pointerEvents="none">
             <Image
@@ -209,8 +272,7 @@ export default function App() {
               style={styles.loadingLogo}
               resizeMode="contain"
             />
-            <ActivityIndicator size="large" color={ACCENT_COLOR} style={styles.spinner} />
-            <Text style={styles.loadingText}>Connecting to WashDeck...</Text>
+            <CustomPulseLoader />
           </View>
         )}
 
@@ -270,15 +332,29 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     alignSelf: 'center',
   },
-  spinner: {
-    marginVertical: 15,
-  },
-  loadingText: {
-    fontSize: 20,
-    color: '#0b2240', // WashDeck Navy
-    fontWeight: '700',
-    textAlign: 'center',
+  customLoaderContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 10,
+  },
+  pulseDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: ACCENT_COLOR,
+    marginBottom: 16,
+  },
+  loadingTrack: {
+    width: 180,
+    height: 4,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  loadingFill: {
+    height: '100%',
+    backgroundColor: ACCENT_COLOR,
+    borderRadius: 2,
   },
   errorContainer: {
     position: 'absolute',
