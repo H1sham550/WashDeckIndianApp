@@ -32,7 +32,7 @@ def generate_assets():
 
     # Separator column is roughly around 287 (determined via analysis)
     # Let's verify that the separator is within range and use it.
-    separator_col = 287
+    separator_col = 315
     
     # 1. Extract the Shield Icon (left side)
     # Left: min_col, Right: separator_col, Top: min_row, Bottom: max_row
