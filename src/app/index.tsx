@@ -181,6 +181,14 @@ export default function App() {
 
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
     setCanGoBack(navState.canGoBack);
+    if (navState.url.includes('/login') || navState.url.includes('logged_out')) {
+      webViewRef.current?.injectJavaScript(`
+        document.cookie = "washdeck_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        sessionStorage.clear();
+        localStorage.clear();
+        true;
+      `);
+    }
   };
 
   // Intercept external links like WhatsApp shares, phone calls, and mailto links
@@ -224,16 +232,28 @@ export default function App() {
           style={[styles.webview, (errorOccurred || !isConnected) && { opacity: 0 }]}
           onNavigationStateChange={handleNavigationStateChange}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
+          onMessage={(event) => {
+            try {
+              const data = JSON.parse(event.nativeEvent.data);
+              if (data.type === 'DOM_READY') {
+                initialLoadDoneRef.current = true;
+                setIsLoading(false);
+                setErrorOccurred(false);
+              }
+              if (data.type === 'LOGOUT') {
+                webViewRef.current?.clearCache?.(true);
+                webViewRef.current?.injectJavaScript(`
+                  document.cookie = "washdeck_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                  sessionStorage.clear();
+                  localStorage.clear();
+                  true;
+                `);
+              }
+            } catch (e) {}
+          }}
           onLoadStart={() => {
             if (isConnected && !errorOccurred && !initialLoadDoneRef.current) {
               setIsLoading(true);
-            }
-          }}
-          onLoadProgress={({ nativeEvent }) => {
-            if (nativeEvent.progress >= 0.8) {
-              initialLoadDoneRef.current = true;
-              setIsLoading(false);
-              setErrorOccurred(false);
             }
           }}
           onLoadEnd={() => {
@@ -260,7 +280,17 @@ export default function App() {
           pullToRefreshEnabled={true}
           allowsBackForwardNavigationGestures={true}
           textZoom={100}
-          injectedJavaScript="window.isNativeApp = true; true;"
+          injectedJavaScript={`
+            window.isNativeApp = true;
+            if (document.readyState === 'complete') {
+              window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'DOM_READY' }));
+            } else {
+              window.addEventListener('load', function() {
+                window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'DOM_READY' }));
+              });
+            }
+            true;
+          `}
         />
 
         {/* Custom Loading Overlay — renders logo + 3-dot wave bouncing loading animation without text */}
