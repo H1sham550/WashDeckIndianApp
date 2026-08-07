@@ -16,7 +16,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import NetInfo from '@react-native-community/netinfo';
-import * as SplashScreen from 'expo-splash-screen';
 
 const PROD_URL = 'https://washdeck.vercel.app';
 const DEV_LOCAL_URL = 'http://localhost:3000';
@@ -92,10 +91,11 @@ export default function App() {
   const [errorOccurred, setErrorOccurred] = useState(false);
   const [triedFallback, setTriedFallback] = useState(false);
 
-  // Dismiss Expo native splash screen as soon as App mounts
+  // Ref to hold latest canGoBack state for the Android back press listener
+  const canGoBackRef = useRef(false);
   useEffect(() => {
-    SplashScreen.hideAsync().catch(() => {});
-  }, []);
+    canGoBackRef.current = canGoBack;
+  }, [canGoBack]);
 
   // Handle hardware back button on Android safely with subtab priority to /dashboard
   useEffect(() => {
