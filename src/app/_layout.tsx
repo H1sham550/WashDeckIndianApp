@@ -3,8 +3,8 @@ import { StatusBar } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
-// Dismiss native splash screen as early as possible
-SplashScreen.hideAsync().catch(() => {});
+// Register splash screen auto-hide prevention with Expo native module
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   useEffect(() => {

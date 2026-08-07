@@ -87,7 +87,7 @@ export default function App() {
   // WebView state
   const [canGoBack, setCanGoBack] = useState(false);
   const [targetUrl, setTargetUrl] = useState(INITIAL_URL);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(true);
   const [errorOccurred, setErrorOccurred] = useState(false);
   const [triedFallback, setTriedFallback] = useState(false);
@@ -96,21 +96,6 @@ export default function App() {
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
-
-  // Ref to hold latest canGoBack state for the Android back press listener
-  const canGoBackRef = useRef(false);
-  useEffect(() => {
-    canGoBackRef.current = canGoBack;
-  }, [canGoBack]);
-
-  // Aggressive safety timer: hide loading screen after max 1000ms
-  useEffect(() => {
-    const safetyTimer = setTimeout(() => {
-      setIsLoading(false);
-      initialLoadDoneRef.current = true;
-    }, 1000);
-    return () => clearTimeout(safetyTimer);
-  }, [targetUrl]);
 
   // Handle hardware back button on Android safely with subtab priority to /dashboard
   useEffect(() => {
