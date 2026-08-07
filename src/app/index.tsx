@@ -96,7 +96,7 @@ export default function App() {
   // WebView state
   const [canGoBack, setCanGoBack] = useState(false);
   const [targetUrl, setTargetUrl] = useState(INITIAL_URL);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState<boolean | null>(true);
   const [errorOccurred, setErrorOccurred] = useState(false);
   const [triedFallback, setTriedFallback] = useState(false);
@@ -107,12 +107,12 @@ export default function App() {
     canGoBackRef.current = canGoBack;
   }, [canGoBack]);
 
-  // Guaranteed Safety Dismiss Timer: hide loading screen after max 2.2 seconds no matter what
+  // Guaranteed Safety Dismiss Timer: hide loading screen after max 1800ms no matter what
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
       setIsLoading(false);
       initialLoadDoneRef.current = true;
-    }, 2200);
+    }, 1800);
     return () => clearTimeout(safetyTimer);
   }, [targetUrl]);
 
@@ -239,10 +239,12 @@ export default function App() {
               setIsLoading(true);
             }
           }}
-          onLoadProgress={() => {
-            initialLoadDoneRef.current = true;
-            setIsLoading(false);
-            setErrorOccurred(false);
+          onLoadProgress={({ nativeEvent }) => {
+            if (nativeEvent.progress >= 0.8) {
+              initialLoadDoneRef.current = true;
+              setIsLoading(false);
+              setErrorOccurred(false);
+            }
           }}
           onLoadEnd={() => {
             initialLoadDoneRef.current = true;
