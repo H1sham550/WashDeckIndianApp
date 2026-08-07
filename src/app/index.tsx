@@ -97,6 +97,15 @@ export default function App() {
     canGoBackRef.current = canGoBack;
   }, [canGoBack]);
 
+  // Guaranteed Safety Dismiss Timer: hide loading screen after max 2.2 seconds no matter what
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      setIsLoading(false);
+      initialLoadDoneRef.current = true;
+    }, 2200);
+    return () => clearTimeout(safetyTimer);
+  }, [targetUrl]);
+
   // Handle hardware back button on Android safely with subtab priority to /dashboard
   useEffect(() => {
     const onBackPress = () => {
