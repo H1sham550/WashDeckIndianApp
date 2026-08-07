@@ -28,63 +28,53 @@ const PRIMARY_COLOR = '#0b2240'; // WashDeck Navy
 const ACCENT_COLOR = '#1771f2';  // WashDeck Electric Blue
 const BG_COLOR = '#F8F9FA';      // WashDeck Page Background
 
-// Custom Loading Animation Component: Ambient Pulse Dot + Dynamic Loading Progress Track
-const CustomPulseLoader = () => {
-  const pulseAnim = useRef(new Animated.Value(0.4)).current;
-  const barAnim = useRef(new Animated.Value(0)).current;
+// Modern 3-Dot Wave Bouncing Loading Animation
+const DotWaveLoader = () => {
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0.4,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+    const createBounceAnim = (anim: Animated.Value, delay: number) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, {
+            toValue: -14,
+            duration: 320,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 320,
+            easing: Easing.in(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+    };
 
-    Animated.loop(
-      Animated.timing(barAnim, {
-        toValue: 1,
-        duration: 1100,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: false,
-      })
-    ).start();
+    const anim1 = createBounceAnim(dot1, 0);
+    const anim2 = createBounceAnim(dot2, 160);
+    const anim3 = createBounceAnim(dot3, 320);
+
+    anim1.start();
+    anim2.start();
+    anim3.start();
+
+    return () => {
+      anim1.stop();
+      anim2.stop();
+      anim3.stop();
+    };
   }, []);
 
-  const barWidth = barAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: ['15%', '65%', '100%'],
-  });
-
   return (
-    <View style={styles.customLoaderContainer}>
-      <Animated.View
-        style={[
-          styles.pulseDot,
-          {
-            opacity: pulseAnim,
-            transform: [
-              {
-                scale: pulseAnim.interpolate({
-                  inputRange: [0.4, 1],
-                  outputRange: [0.85, 1.2],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
-      <View style={styles.loadingTrack}>
-        <Animated.View style={[styles.loadingFill, { width: barWidth }]} />
-      </View>
+    <View style={styles.waveLoaderContainer}>
+      <Animated.View style={[styles.waveDot, { transform: [{ translateY: dot1 }] }]} />
+      <Animated.View style={[styles.waveDot, { transform: [{ translateY: dot2 }] }]} />
+      <Animated.View style={[styles.waveDot, { transform: [{ translateY: dot3 }] }]} />
     </View>
   );
 };
@@ -273,7 +263,7 @@ export default function App() {
           injectedJavaScript="window.isNativeApp = true; true;"
         />
 
-        {/* Custom Loading Overlay — renders logo + custom pulse animation with glowing dot & progress track */}
+        {/* Custom Loading Overlay — renders logo + 3-dot wave bouncing loading animation without text */}
         {isLoading && !errorOccurred && isConnected && (
           <View style={styles.loadingContainer} pointerEvents="none">
             <Image
@@ -281,7 +271,7 @@ export default function App() {
               style={styles.loadingLogo}
               resizeMode="contain"
             />
-            <CustomPulseLoader />
+            <DotWaveLoader />
           </View>
         )}
 
@@ -341,29 +331,24 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     alignSelf: 'center',
   },
-  customLoaderContainer: {
+  waveLoaderContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
+    gap: 10,
+    marginTop: 20,
+    height: 30,
   },
-  pulseDot: {
+  waveDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
     backgroundColor: ACCENT_COLOR,
-    marginBottom: 16,
-  },
-  loadingTrack: {
-    width: 180,
-    height: 4,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  loadingFill: {
-    height: '100%',
-    backgroundColor: ACCENT_COLOR,
-    borderRadius: 2,
+    shadowColor: ACCENT_COLOR,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 3,
   },
   errorContainer: {
     position: 'absolute',
