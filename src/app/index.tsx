@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import NetInfo from '@react-native-community/netinfo';
+import * as SplashScreen from 'expo-splash-screen';
 
 const PROD_URL = 'https://washdeck.vercel.app';
 const DEV_LOCAL_URL = 'http://localhost:3000';
@@ -81,6 +82,7 @@ const DotWaveLoader = () => {
 
 export default function App() {
   const webViewRef = useRef<WebView>(null);
+  const initialLoadDoneRef = useRef(false);
   
   // WebView state
   const [canGoBack, setCanGoBack] = useState(false);
@@ -90,21 +92,25 @@ export default function App() {
   const [errorOccurred, setErrorOccurred] = useState(false);
   const [triedFallback, setTriedFallback] = useState(false);
 
+  // Dismiss Expo native splash screen as soon as App mounts
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
   // Ref to hold latest canGoBack state for the Android back press listener
   const canGoBackRef = useRef(false);
   useEffect(() => {
     canGoBackRef.current = canGoBack;
   }, [canGoBack]);
 
-  // Safety timer: hide loading screen after timeout if connected
+  // Aggressive safety timer: hide loading screen after max 1000ms
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
-      if (isConnected && !errorOccurred) {
-        setIsLoading(false);
-      }
-    }, 3000);
+      setIsLoading(false);
+      initialLoadDoneRef.current = true;
+    }, 1000);
     return () => clearTimeout(safetyTimer);
-  }, [targetUrl, isConnected, errorOccurred]);
+  }, [targetUrl]);
 
   // Handle hardware back button on Android safely with subtab priority to /dashboard
   useEffect(() => {
@@ -225,21 +231,18 @@ export default function App() {
           onNavigationStateChange={handleNavigationStateChange}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
           onLoadStart={() => {
-            if (isConnected && !errorOccurred) {
+            if (isConnected && !errorOccurred && !initialLoadDoneRef.current) {
               setIsLoading(true);
             }
           }}
-          onLoadProgress={({ nativeEvent }) => {
-            // Dismiss splash overlay early at 50% DOM load for instantaneous feel
-            if (nativeEvent.progress >= 0.5) {
-              setIsLoading(false);
-              setErrorOccurred(false);
-            }
+          onLoadProgress={() => {
+            initialLoadDoneRef.current = true;
+            setIsLoading(false);
+            setErrorOccurred(false);
           }}
           onLoadEnd={() => {
-            if (isConnected) {
-              setIsLoading(false);
-            }
+            initialLoadDoneRef.current = true;
+            setIsLoading(false);
           }}
           onError={handleLoadError}
           onHttpError={(e) => {
