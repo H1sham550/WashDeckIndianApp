@@ -327,8 +327,8 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   loadingLogo: {
-    width: 260,
-    height: 100,
+    width: 300,
+    height: 120,
     marginBottom: 20,
     alignSelf: 'center',
   },
