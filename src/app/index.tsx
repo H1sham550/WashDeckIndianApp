@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import NetInfo from '@react-native-community/netinfo';
 
-const PROD_URL = 'https://washdeck.vercel.app';
+const PROD_URL = 'https://wash-desk-kod.vercel.app';
 const DEV_LOCAL_URL = 'http://localhost:3000';
 const DEV_LAN_URL = 'http://192.168.1.3:3000';
 
