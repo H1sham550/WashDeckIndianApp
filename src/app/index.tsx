@@ -82,7 +82,7 @@ const DotWaveLoader = () => {
 export default function App() {
   const webViewRef = useRef<WebView>(null);
   const initialLoadDoneRef = useRef(false);
-  
+
   // WebView state
   const [canGoBack, setCanGoBack] = useState(false);
   const [targetUrl, setTargetUrl] = useState(INITIAL_URL);
@@ -97,12 +97,12 @@ export default function App() {
     canGoBackRef.current = canGoBack;
   }, [canGoBack]);
 
-  // Guaranteed Safety Dismiss Timer: hide loading screen after max 1800ms no matter what
+  // Guaranteed Emergency Safety Dismiss Timer: hide loading screen after 6000ms max if message missed
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
       setIsLoading(false);
       initialLoadDoneRef.current = true;
-    }, 1800);
+    }, 6000);
     return () => clearTimeout(safetyTimer);
   }, [targetUrl]);
 
@@ -202,7 +202,7 @@ export default function App() {
       url.startsWith('mailto:') ||
       url.startsWith('geo:')
     ) {
-      Linking.openURL(url).catch(() => {});
+      Linking.openURL(url).catch(() => { });
       return false;
     }
     return true;
@@ -223,7 +223,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
-      
+
       <View style={styles.container}>
         {/* Main WebView — kept persistent in tree to avoid flickering re-mounts */}
         <WebView
@@ -235,7 +235,7 @@ export default function App() {
           onMessage={(event) => {
             try {
               const data = JSON.parse(event.nativeEvent.data);
-              if (data.type === 'DOM_READY') {
+              if (data.type === 'PAGE_READY' || data.type === 'DOM_READY') {
                 initialLoadDoneRef.current = true;
                 setIsLoading(false);
                 setErrorOccurred(false);
@@ -249,7 +249,7 @@ export default function App() {
                   true;
                 `);
               }
-            } catch (e) {}
+            } catch (e) { }
           }}
           onLoadStart={() => {
             if (isConnected && !errorOccurred && !initialLoadDoneRef.current) {
@@ -257,8 +257,7 @@ export default function App() {
             }
           }}
           onLoadEnd={() => {
-            initialLoadDoneRef.current = true;
-            setIsLoading(false);
+            // Keep loading screen active until Next.js fires PAGE_READY to prevent white screen flicker
           }}
           onError={handleLoadError}
           onHttpError={(e) => {
