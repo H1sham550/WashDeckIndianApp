@@ -16,6 +16,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import NetInfo from '@react-native-community/netinfo';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const PROD_URL = 'https://wash-deck-india.vercel.app';
 const DEV_LOCAL_URL = 'http://localhost:3000';
@@ -97,12 +100,18 @@ export default function App() {
     canGoBackRef.current = canGoBack;
   }, [canGoBack]);
 
-  // Guaranteed Safety Dismiss Timer: hide loading screen after 1500ms max if message missed
+  // Hide native Android splash screen immediately on mount so content is visible
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
+  // Guaranteed Safety Dismiss Timer: hide loading screen after 1000ms max if message missed
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
       setIsLoading(false);
       initialLoadDoneRef.current = true;
-    }, 1500);
+      SplashScreen.hideAsync().catch(() => {});
+    }, 1000);
     return () => clearTimeout(safetyTimer);
   }, [targetUrl]);
 
@@ -239,6 +248,7 @@ export default function App() {
                 initialLoadDoneRef.current = true;
                 setIsLoading(false);
                 setErrorOccurred(false);
+                SplashScreen.hideAsync().catch(() => {});
               }
               if (data.type === 'LOGOUT') {
                 webViewRef.current?.clearCache?.(true);
@@ -259,6 +269,7 @@ export default function App() {
           onLoadEnd={() => {
             initialLoadDoneRef.current = true;
             setIsLoading(false);
+            SplashScreen.hideAsync().catch(() => {});
           }}
           onError={handleLoadError}
           onHttpError={(e) => {
