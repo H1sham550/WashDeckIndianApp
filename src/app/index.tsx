@@ -97,7 +97,7 @@ export default function App() {
     canGoBackRef.current = canGoBack;
   }, [canGoBack]);
 
-  // Guaranteed Safety Dismiss Timer: hide loading screen after 1500ms max
+  // Guaranteed Safety Dismiss Timer: hide loading screen after 1500ms max if message missed
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
       setIsLoading(false);
@@ -165,11 +165,13 @@ export default function App() {
     setIsConnected(connected);
 
     if (!connected) {
+      // Still offline — maintain the Connection Lost UI card
       setErrorOccurred(false);
       setIsLoading(false);
       return;
     }
 
+    // Connected — reset errors and reload webview
     setErrorOccurred(false);
     setIsLoading(true);
     setTriedFallback(false);
@@ -189,6 +191,7 @@ export default function App() {
     }
   };
 
+  // Intercept external links like WhatsApp shares, phone calls, and mailto links
   const handleShouldStartLoad = (event: any) => {
     const url = event.url;
     if (
@@ -205,6 +208,7 @@ export default function App() {
     return true;
   };
 
+  // Handle load errors cleanly: try production fallback first before showing error UI
   const handleLoadError = () => {
     if (!triedFallback && targetUrl !== PROD_URL) {
       console.log('Local dev URL unreachable, attempting production fallback:', PROD_URL);
@@ -221,6 +225,7 @@ export default function App() {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
 
       <View style={styles.container}>
+        {/* Main WebView — kept persistent in tree to avoid flickering re-mounts */}
         <WebView
           ref={webViewRef}
           source={{ uri: targetUrl }}
@@ -288,19 +293,19 @@ export default function App() {
           `}
         />
 
+        {/* Custom Loading Overlay — renders logo + 3-dot wave bouncing loading animation without text */}
         {isLoading && !errorOccurred && isConnected && (
           <View style={styles.loadingContainer} pointerEvents="none">
-            <View style={styles.logoWrapper}>
-              <Image
-                source={require('../../assets/app_logo.png')}
-                style={styles.loadingLogo}
-                resizeMode="contain"
-              />
-              <DotWaveLoader />
-            </View>
+            <Image
+              source={require('../../assets/app_logo.png')}
+              style={styles.loadingLogo}
+              resizeMode="contain"
+            />
+            <DotWaveLoader />
           </View>
         )}
 
+        {/* Custom Offline / Error Screen — static, stable, non-flashing card */}
         {(!isConnected || errorOccurred) && (
           <View style={styles.errorContainer}>
             <Image
@@ -348,22 +353,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 100,
-  },
-  logoWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
+    padding: 24,
   },
   loadingLogo: {
-    width: 260,
-    height: 80,
-    marginBottom: 16,
+    width: 300,
+    height: 120,
+    marginBottom: 20,
+    alignSelf: 'center',
   },
   waveLoaderContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+    marginTop: 20,
     height: 30,
   },
   waveDot: {
@@ -391,7 +394,7 @@ const styles = StyleSheet.create({
   },
   errorLogo: {
     width: 240,
-    height: 75,
+    height: 95,
     marginBottom: 32,
     alignSelf: 'center',
   },
