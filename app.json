@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "WashDeck",
-    "slug": "washdeck",
+    "name": "WashDeck India",
+    "slug": "washdeck-india",
     "owner": "h1sham550",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "washdeck",
+    "scheme": "washdeckindia",
     "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "com.washdeck.app",
+      "bundleIdentifier": "com.washdeck.india",
       "supportsTablet": true
     },
     "android": {
-      "package": "com.washdeck.app",
+      "package": "com.washdeck.india",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/adaptive-icon.png"
