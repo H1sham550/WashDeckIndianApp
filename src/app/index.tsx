@@ -97,12 +97,12 @@ export default function App() {
     canGoBackRef.current = canGoBack;
   }, [canGoBack]);
 
-  // Guaranteed Emergency Safety Dismiss Timer: hide loading screen after 6000ms max if message missed
+  // Guaranteed Safety Dismiss Timer: hide loading screen after 2500ms max
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
       setIsLoading(false);
       initialLoadDoneRef.current = true;
-    }, 6000);
+    }, 2500);
     return () => clearTimeout(safetyTimer);
   }, [targetUrl]);
 
@@ -257,7 +257,8 @@ export default function App() {
             }
           }}
           onLoadEnd={() => {
-            // Keep loading screen active until Next.js fires PAGE_READY to prevent white screen flicker
+            initialLoadDoneRef.current = true;
+            setIsLoading(false);
           }}
           onError={handleLoadError}
           onHttpError={(e) => {
@@ -352,13 +353,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 100,
-    padding: 24,
+    paddingHorizontal: 24,
   },
   loadingLogo: {
-    width: 300,
-    height: 120,
-    marginBottom: 20,
-    alignSelf: 'center',
+    width: 220,
+    height: 90,
+    marginBottom: 16,
   },
   waveLoaderContainer: {
     flexDirection: 'row',
