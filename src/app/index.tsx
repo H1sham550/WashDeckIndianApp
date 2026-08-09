@@ -16,9 +16,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import NetInfo from '@react-native-community/netinfo';
-import * as SplashScreen from 'expo-splash-screen';
-
-SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const PROD_URL = 'https://wash-deck-india.vercel.app';
 const DEV_LOCAL_URL = 'http://localhost:3000';
@@ -100,18 +97,12 @@ export default function App() {
     canGoBackRef.current = canGoBack;
   }, [canGoBack]);
 
-  // Hide native Android splash screen immediately on mount so content is visible
-  useEffect(() => {
-    SplashScreen.hideAsync().catch(() => {});
-  }, []);
-
-  // Guaranteed Safety Dismiss Timer: hide loading screen after 1000ms max if message missed
+  // Safety Dismiss Timer: hide loading overlay after 1200ms max
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
       setIsLoading(false);
       initialLoadDoneRef.current = true;
-      SplashScreen.hideAsync().catch(() => {});
-    }, 1000);
+    }, 1200);
     return () => clearTimeout(safetyTimer);
   }, [targetUrl]);
 
@@ -174,13 +165,11 @@ export default function App() {
     setIsConnected(connected);
 
     if (!connected) {
-      // Still offline — maintain the Connection Lost UI card
       setErrorOccurred(false);
       setIsLoading(false);
       return;
     }
 
-    // Connected — reset errors and reload webview
     setErrorOccurred(false);
     setIsLoading(true);
     setTriedFallback(false);
@@ -200,7 +189,6 @@ export default function App() {
     }
   };
 
-  // Intercept external links like WhatsApp shares, phone calls, and mailto links
   const handleShouldStartLoad = (event: any) => {
     const url = event.url;
     if (
@@ -217,7 +205,6 @@ export default function App() {
     return true;
   };
 
-  // Handle load errors cleanly: try production fallback first before showing error UI
   const handleLoadError = () => {
     if (!triedFallback && targetUrl !== PROD_URL) {
       console.log('Local dev URL unreachable, attempting production fallback:', PROD_URL);
@@ -234,7 +221,6 @@ export default function App() {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
 
       <View style={styles.container}>
-        {/* Main WebView — kept persistent in tree to avoid flickering re-mounts */}
         <WebView
           ref={webViewRef}
           source={{ uri: targetUrl }}
@@ -248,7 +234,6 @@ export default function App() {
                 initialLoadDoneRef.current = true;
                 setIsLoading(false);
                 setErrorOccurred(false);
-                SplashScreen.hideAsync().catch(() => {});
               }
               if (data.type === 'LOGOUT') {
                 webViewRef.current?.clearCache?.(true);
@@ -269,7 +254,6 @@ export default function App() {
           onLoadEnd={() => {
             initialLoadDoneRef.current = true;
             setIsLoading(false);
-            SplashScreen.hideAsync().catch(() => {});
           }}
           onError={handleLoadError}
           onHttpError={(e) => {
@@ -304,7 +288,6 @@ export default function App() {
           `}
         />
 
-        {/* Custom Loading Overlay — renders logo + 3-dot wave bouncing loading animation without text */}
         {isLoading && !errorOccurred && isConnected && (
           <View style={styles.loadingContainer} pointerEvents="none">
             <Image
@@ -316,7 +299,6 @@ export default function App() {
           </View>
         )}
 
-        {/* Custom Offline / Error Screen — static, stable, non-flashing card */}
         {(!isConnected || errorOccurred) && (
           <View style={styles.errorContainer}>
             <Image
